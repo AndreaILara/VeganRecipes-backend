@@ -1,10 +1,13 @@
 const express = require("express");
-const { registerUser, loginUser, getUserProfile, updateUser, changePassword, forgotPassword, resetPassword, deleteUser, getAllUsers, deleteUserByAdmin } = require("../controllers/User");
+const {
+  registerUser, loginUser, getUserProfile, updateUser, changePassword, forgotPassword, resetPassword, deleteUser, getAllUsers, deleteUserByAdmin,
+  getUserFavorites, addRecipeToFavorites, removeRecipeFromFavorites
+} = require("../controllers/User");
 const { isLoggedIn, isAdmin } = require("../../middlewares/auth");
 
 const router = express.Router();
 
-// Autenticación
+
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.get("/profile", isLoggedIn, getUserProfile);
@@ -14,7 +17,13 @@ router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.delete("/delete", isLoggedIn, deleteUser);
 
-// Administración (solo admins)
+// Gestión de favoritos
+router.get("/favorites", isLoggedIn, getUserFavorites);
+router.post("/favorites", isLoggedIn, addRecipeToFavorites);
+router.delete("/favorites", isLoggedIn, removeRecipeFromFavorites);
+
+
+// Administración
 router.get("/", isLoggedIn, isAdmin, getAllUsers);
 router.delete("/:id", isLoggedIn, isAdmin, deleteUserByAdmin);
 

@@ -1,5 +1,4 @@
 const Recipe = require("../models/Recipe");
-const Favorite = require("../models/Favorite");
 const { uploadImage, deleteImage } = require("../../utils/cloudinary");
 const fs = require("fs");
 const nodemailer = require("nodemailer");
@@ -13,12 +12,21 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Obtener todas las recetas (con filtro opcional por categoría)
 const getAllRecipes = async (req, res) => {
   try {
-    const { category } = req.query;
-    const filter = category ? { category } : {}; // Filtra por categoría si se proporciona
+    const { category } = req.query; // Se usa query en vez de params
+
+    let filter = {};
+    if (category) {
+      const validCategories = ["Desayuno", "Comida", "Merienda", "Cena"];
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({ message: "Categoría inválida" });
+      }
+      filter.category = category;
+    }
+
     const recipes = await Recipe.find(filter).populate("createdBy", "username");
+
     res.json(recipes);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener recetas", error });
@@ -35,38 +43,6 @@ const getRecipeById = async (req, res) => {
     res.json(recipe);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener la receta", error });
-  }
-};
-
-// Añadir receta a favoritos (usuario autenticado)
-const addRecipeToFavorites = async (req, res) => {
-  try {
-    const { recipeId } = req.body;
-
-    // Verificar si ya está en favoritos
-    const existingFavorite = await Favorite.findOne({ user: req.user._id, recipe: recipeId });
-    if (existingFavorite) return res.status(400).json({ message: "Esta receta ya está en favoritos" });
-
-    const newFavorite = new Favorite({ user: req.user._id, recipe: recipeId });
-    await newFavorite.save();
-
-    res.json({ message: "Receta añadida a favoritos" });
-  } catch (error) {
-    res.status(500).json({ message: "Error al añadir a favoritos", error });
-  }
-};
-
-// Eliminar receta de favoritos (usuario autenticado)
-const removeRecipeFromFavorites = async (req, res) => {
-  try {
-    const { recipeId } = req.body;
-
-    const favorite = await Favorite.findOneAndDelete({ user: req.user._id, recipe: recipeId });
-    if (!favorite) return res.status(400).json({ message: "Esta receta no está en favoritos" });
-
-    res.json({ message: "Receta eliminada de favoritos" });
-  } catch (error) {
-    res.status(500).json({ message: "Error al eliminar de favoritos", error });
   }
 };
 
@@ -88,7 +64,6 @@ const sendSuggestionToAdmin = async (req, res) => {
   }
 };
 
-// ADMIN: Crear una nueva receta
 const createRecipe = async (req, res) => {
   try {
     if (req.user.role !== "admin") {
@@ -98,15 +73,16 @@ const createRecipe = async (req, res) => {
     const { title, ingredients, steps, category } = req.body;
     if (!req.file) return res.status(400).json({ message: "Debe subir una imagen" });
 
-    const result = await uploadImage(req.file.path); // Sube imagen a Cloudinary
-    fs.unlinkSync(req.file.path); // Borra el archivo temporal
+    // Sube la imagen a Cloudinary
+    const result = await uploadImage(req.file.path);
+    fs.unlinkSync(req.file.path);
 
     const newRecipe = new Recipe({
       title,
       ingredients: ingredients.split(","),
       steps: steps.split(","),
       category,
-      image: result.secure_url,
+      image: result.secure_url, // Guardar URL de Cloudinary
       createdBy: req.user._id,
     });
 
@@ -168,13 +144,37 @@ const deleteRecipe = async (req, res) => {
   }
 };
 
+const getRecipesByCategory = async (req, res) => {
+  try {
+    const { category } = req.params; // Obtiene la categoría desde los parámetros de la URL
+
+    // Verificar que la categoría sea válida
+    const validCategories = ["Desayuno", "Comida", "Merienda", "Cena"];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({ message: "Categoría inválida" });
+    }
+
+    // Filtrar recetas por la categoría proporcionada (sin espacios extra)
+    const recipes = await Recipe.find({ category: category.trim() }).populate("createdBy", "username");
+
+    if (recipes.length === 0) {
+      return res.status(404).json({ message: "No se encontraron recetas en esta categoría" });
+    }
+
+    res.json(recipes);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener recetas por categoría", error });
+  }
+};
+
+
+
 module.exports = {
   getAllRecipes,
   getRecipeById,
-  addRecipeToFavorites,
-  removeRecipeFromFavorites,
   sendSuggestionToAdmin,
   createRecipe,
   updateRecipe,
   deleteRecipe,
+  getRecipesByCategory,
 };

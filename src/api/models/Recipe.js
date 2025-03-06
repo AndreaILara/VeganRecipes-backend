@@ -5,7 +5,7 @@ const RecipeSchema = new mongoose.Schema({
   ingredients: { type: [String], required: true },
   steps: { type: [String], required: true },
   category: { type: String, enum: ["Desayuno", "Comida", "Merienda", "Cena"], required: true },
-  image: { type: String, required: true }, // URL de la imagen en Cloudinary
+  image: { type: String, required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   createdAt: { type: Date, default: Date.now },
 });

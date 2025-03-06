@@ -6,7 +6,6 @@ const connectDB = require("./src/config/db");
 const userRoutes = require("./src/api/routes/user.js");
 const recipeRoutes = require("./src/api/routes/recipe.js");
 const commentRoutes = require("./src/api/routes/comment.js");
-const favoriteRoutes = require("./src/api/routes/favorite.js");
 
 const app = express();
 
@@ -22,15 +21,15 @@ connectDB();
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/recipes", recipeRoutes);
 app.use("/api/v1/comments", commentRoutes);
-app.use("/api/v1/favorites", favoriteRoutes);
 
-
-//Ruta universal para que el servidor nos responda
-app.use('*', (req, res, next) => {
-  return res.status(404).json('Route Not Found');
+// Ruta universal para manejar rutas no existentes
+app.use("*", (req, res) => {
+  res.status(404).json({ message: "Route Not Found" });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`The server is running at port ${PORT}`);
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
+
+module.exports = app;

@@ -3,20 +3,24 @@ const { verifyJWT } = require('../config/jwt');
 
 const isLoggedIn = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
+    const token = req.headers.authorization?.replace("Bearer ", "");
     if (!token) {
-      return res
-        .status(401)
-        .json('No estás autorizado para realizar esta acción');
+      return res.status(401).json({ message: "No estás autorizado para realizar esta acción" });
     }
+
     const { id } = verifyJWT(token);
     const user = await User.findById(id);
-    user.password = null;
-    // paso a la siguiente función una versión del usuario sin el password
+
+    if (!user) {
+      return res.status(401).json({ message: "Usuario no encontrado" });
+    }
+
     req.user = user;
+    req.user.password = undefined;
+
     next();
   } catch (error) {
-    next(error);
+    res.status(500).json({ message: "Error de autenticación", error });
   }
 };
 
