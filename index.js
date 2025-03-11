@@ -21,6 +21,7 @@ connectDB();
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/recipes", recipeRoutes);
 app.use("/api/v1/comments", commentRoutes);
+app.use("/api/contact", require("./src/api/routes/contact"));
 
 // Ruta universal para manejar rutas no existentes
 app.use("*", (req, res) => {
