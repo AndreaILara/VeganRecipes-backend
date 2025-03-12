@@ -88,11 +88,11 @@ const getUserProfile = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { username, email } = req.body;
+    const { username, email, avatar } = req.body;
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
-      { username, email },
+      { username, email, avatar },
       { new: true, runValidators: true, omitUndefined: true }
     );
 
@@ -101,6 +101,7 @@ const updateUser = async (req, res) => {
     res.status(500).json({ message: "Error al actualizar usuario", error });
   }
 };
+
 
 // Cambiar contraseña
 const changePassword = async (req, res) => {

@@ -7,16 +7,15 @@ const userRoutes = require("./src/api/routes/user.js");
 const recipeRoutes = require("./src/api/routes/recipe.js");
 const commentRoutes = require("./src/api/routes/comment.js");
 
-const app = express();
+const app = express(); // <--- Mueve esta línea arriba
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));  // Ahora está después de inicializar `app`
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Conectar a la base de datos
 connectDB();
-
 // Rutas principales
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/recipes", recipeRoutes);
