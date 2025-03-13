@@ -70,7 +70,13 @@ const loginUser = async (req, res) => {
 
     res.json({
       token,
-      user: { id: user._id, username: user.username, email: user.email, role: user.role },
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,  // 🔥 Asegura que se envíe el avatar
+        role: user.role
+      },
     });
   } catch (error) {
     res.status(500).json({ message: "Error en el login", error });
@@ -88,11 +94,21 @@ const getUserProfile = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { username, email, avatar } = req.body;
+    const { username, email, avatar, password } = req.body;
+
+    let updateData = { username, email };
+
+    if (avatar) {
+      updateData.avatar = avatar;  // 🔥 Guarda la imagen correctamente en la BD
+    }
+
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
-      { username, email, avatar },
+      updateData,
       { new: true, runValidators: true, omitUndefined: true }
     );
 
@@ -101,6 +117,7 @@ const updateUser = async (req, res) => {
     res.status(500).json({ message: "Error al actualizar usuario", error });
   }
 };
+
 
 
 // Cambiar contraseña
@@ -122,9 +139,7 @@ const changePassword = async (req, res) => {
     res.status(500).json({ message: "Error al cambiar contraseña", error });
   }
 };
-
-
-// Olvidé mi contraseña (envío de correo con código)
+// 🔥 Olvidé mi contraseña (envío de correo con código)
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -134,14 +149,22 @@ const forgotPassword = async (req, res) => {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    // 🛠️ Eliminar código previo si existía antes de generar uno nuevo
+    await User.updateOne(
+      { email },
+      { $unset: { resetToken: "", resetTokenExpires: "" } }
+    );
 
+    // 🛠️ Generar un único código de 6 dígitos
     const resetToken = crypto.randomInt(100000, 999999).toString();
-
-
     user.resetToken = resetToken;
-    user.resetTokenExpires = Date.now() + 3600000;
-    await user.save();
+    user.resetTokenExpires = Date.now() + 3600000; // Expira en 1 hora
 
+    await user.save(); // Guardar SOLO UNA VEZ
+
+    console.log(`🔥 Código generado y guardado en la BD para ${email}: ${resetToken}`);
+
+    // Enviar el código por email
     await transporter.sendMail({
       from: `"Tu Rincón Vegano" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -160,11 +183,12 @@ const forgotPassword = async (req, res) => {
 
     res.json({ message: "Correo de recuperación enviado" });
   } catch (error) {
+    console.error("❌ Error en forgotPassword:", error);
     res.status(500).json({ message: "Error al enviar correo de recuperación", error });
   }
 };
 
-// Restablecer contraseña
+// 🔥 Restablecer contraseña
 const resetPassword = async (req, res) => {
   try {
     const { email, resetToken, newPassword } = req.body;
@@ -173,23 +197,28 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ message: "Todos los campos son obligatorios" });
     }
 
-    const user = await User.findOne({ email, resetToken });
+    const user = await User.findOne({ email });
 
-    // Verificar si el código es correcto y no ha expirado
-    if (!user || user.resetTokenExpires < Date.now()) {
+    console.log(`🔍 Código en la BD para ${email}: ${user?.resetToken}`);
+    console.log(`🔍 Código ingresado por el usuario: ${resetToken}`);
+
+
+    // 🛠️ Asegurar que solo se compara el último código generado
+    if (!user || user.resetToken !== resetToken || user.resetTokenExpires < Date.now()) {
       return res.status(400).json({ message: "Código inválido o expirado" });
     }
 
-    // Hash de la nueva contraseña
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
+    // Guardar la nueva contraseña encriptada
+    user.password = await bcrypt.hash(newPassword, 10);
 
-    // Eliminar el token de recuperación
+    // Eliminar el código de recuperación para que no pueda reutilizarse
     user.resetToken = null;
     user.resetTokenExpires = null;
-
     await user.save();
 
+    console.log(`✅ Contraseña actualizada para ${email}`);
+
+    // Enviar correo de confirmación
     await transporter.sendMail({
       from: `"Tu Rincón Vegano" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -206,9 +235,11 @@ const resetPassword = async (req, res) => {
 
     res.json({ message: "Contraseña restablecida correctamente" });
   } catch (error) {
+    console.error("❌ Error en resetPassword:", error);
     res.status(500).json({ message: "Error al restablecer contraseña", error });
   }
 };
+
 
 // Eliminar cuenta de usuario
 const deleteUser = async (req, res) => {
