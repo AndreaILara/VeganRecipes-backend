@@ -13,6 +13,11 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+const validarContraseña = (password) => {
+  const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&.])[A-Za-z\d@$!%*?&.]{8,}$/;
+  return regex.test(password);
+};
+
 
 const registerUser = async (req, res) => {
   try {
@@ -22,32 +27,36 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: "El email ya está en uso" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if (!validarContraseña(password)) {
+      return res.status(400).json({
+        message: "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo especial.",
+      });
+    }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
       username,
       email,
       password: hashedPassword,
-      role: role === "admin" ? "admin" : "user"
+      role: role === "admin" ? "admin" : "user",
     });
 
     await newUser.save();
-
 
     await transporter.sendMail({
       from: `"Tu Rincón Vegano" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "¡Bienvenid@ a Tu Rincón Vegano! 🌱",
       html: `
-      <div style="text-align: center; font-family: Arial, sans-serif; padding: 20px;">
-        <img src="https://res.cloudinary.com/dyhasskhz/image/upload/v1741272763/Tu_RInc%C3%B3n_vegano_logo_pnbbaq.png" width="150" alt="Tu Rincón Vegano" />
-        <h2 style="color: #8cc342;">Hola ${username}, bienvenido a Tu Rincón Vegano</h2>
-        <p>Explora y disfruta nuestras recetas veganas. 🌿</p>
-        <p>¡Esperamos que te encante esta experiencia!</p>
-        <a href="https://turinconvegano.com" style="display: inline-block; padding: 10px 15px; color: white; background-color: #8cc342; text-decoration: none; border-radius: 5px;">Visitar la web</a>
-      </div>
-    `,
+        <div style="text-align: center; font-family: Arial, sans-serif; padding: 20px;">
+          <img src="https://res.cloudinary.com/dyhasskhz/image/upload/v1741272763/Tu_RInc%C3%B3n_vegano_logo_pnbbaq.png" width="150" alt="Tu Rincón Vegano" />
+          <h2 style="color: #8cc342;">Hola ${username}, bienvenido a Tu Rincón Vegano</h2>
+          <p>Explora y disfruta nuestras recetas veganas. 🌿</p>
+          <p>¡Esperamos que te encante esta experiencia!</p>
+          <a href="https://turinconvegano.com" style="display: inline-block; padding: 10px 15px; color: white; background-color: #8cc342; text-decoration: none; border-radius: 5px;">Visitar la web</a>
+        </div>
+      `,
     });
 
     res.status(201).json({ message: "Usuario registrado correctamente", user: newUser });
@@ -55,7 +64,6 @@ const registerUser = async (req, res) => {
     res.status(500).json({ message: "Error en el registro", error });
   }
 };
-
 
 const loginUser = async (req, res) => {
   try {
@@ -120,15 +128,19 @@ const updateUser = async (req, res) => {
 
 
 
-// Cambiar contraseña
 const changePassword = async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
-
     const user = await User.findById(req.user._id);
 
     if (!user || !(await bcrypt.compare(oldPassword, user.password))) {
       return res.status(400).json({ message: "La contraseña antigua no es correcta" });
+    }
+
+    if (!validarContraseña(newPassword)) {
+      return res.status(400).json({
+        message: "La nueva contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo especial.",
+      });
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
@@ -139,6 +151,7 @@ const changePassword = async (req, res) => {
     res.status(500).json({ message: "Error al cambiar contraseña", error });
   }
 };
+
 // 🔥 Olvidé mi contraseña (envío de correo con código)
 const forgotPassword = async (req, res) => {
   try {
@@ -162,7 +175,6 @@ const forgotPassword = async (req, res) => {
 
     await user.save(); // Guardar SOLO UNA VEZ
 
-    console.log(`🔥 Código generado y guardado en la BD para ${email}: ${resetToken}`);
 
     // Enviar el código por email
     await transporter.sendMail({
@@ -199,26 +211,24 @@ const resetPassword = async (req, res) => {
 
     const user = await User.findOne({ email });
 
-    console.log(`🔍 Código en la BD para ${email}: ${user?.resetToken}`);
-    console.log(`🔍 Código ingresado por el usuario: ${resetToken}`);
-
-
-    // 🛠️ Asegurar que solo se compara el último código generado
     if (!user || user.resetToken !== resetToken || user.resetTokenExpires < Date.now()) {
       return res.status(400).json({ message: "Código inválido o expirado" });
     }
 
-    // Guardar la nueva contraseña encriptada
-    user.password = await bcrypt.hash(newPassword, 10);
+    if (!validarContraseña(newPassword)) {
+      return res.status(400).json({
+        message: "La nueva contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo especial.",
+      });
+    }
 
-    // Eliminar el código de recuperación para que no pueda reutilizarse
-    user.resetToken = null;
-    user.resetTokenExpires = null;
+    user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
-    console.log(`✅ Contraseña actualizada para ${email}`);
+    await User.updateOne(
+      { email },
+      { $unset: { resetToken: "", resetTokenExpires: "" } }
+    );
 
-    // Enviar correo de confirmación
     await transporter.sendMail({
       from: `"Tu Rincón Vegano" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -235,7 +245,6 @@ const resetPassword = async (req, res) => {
 
     res.json({ message: "Contraseña restablecida correctamente" });
   } catch (error) {
-    console.error("❌ Error en resetPassword:", error);
     res.status(500).json({ message: "Error al restablecer contraseña", error });
   }
 };
