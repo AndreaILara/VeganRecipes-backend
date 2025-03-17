@@ -62,23 +62,20 @@ const sendSuggestionToAdmin = async (req, res) => {
     res.status(500).json({ message: "Error al enviar la sugerencia", error });
   }
 };
-
 const createRecipe = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "No tienes permiso para agregar recetas" });
-    }
+    if (req.user.role !== "admin") return res.status(403).json({ message: "No tienes permiso para agregar recetas" });
 
     const { title, ingredients, steps, category } = req.body;
     if (!req.file) return res.status(400).json({ message: "Debe subir una imagen" });
 
     const result = await uploadImage(req.file.path);
-    fs.unlinkSync(req.file.path);
+    fs.unlinkSync(req.file.path); // Elimina la imagen temporal
 
     const newRecipe = new Recipe({
       title,
-      ingredients, // Ahora se guarda como un string completo
-      steps, // Ahora se guarda como un string completo
+      ingredients,
+      steps,
       category,
       image: result.secure_url,
       createdBy: req.user._id,
@@ -93,9 +90,7 @@ const createRecipe = async (req, res) => {
 // ADMIN: Editar una receta
 const updateRecipe = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "No tienes permiso para editar recetas" });
-    }
+    if (req.user.role !== "admin") return res.status(403).json({ message: "No tienes permiso para editar recetas" });
 
     const { id } = req.params;
     const { title, ingredients, steps, category } = req.body;
@@ -103,8 +98,8 @@ const updateRecipe = async (req, res) => {
     if (!recipe) return res.status(404).json({ message: "Receta no encontrada" });
 
     if (title) recipe.title = title;
-    if (ingredients) recipe.ingredients = ingredients; // Ahora se guarda como texto completo
-    if (steps) recipe.steps = steps; // Ahora los pasos se guardan como texto completo
+    if (ingredients) recipe.ingredients = ingredients;
+    if (steps) recipe.steps = steps;
     if (category) recipe.category = category;
 
     if (req.file) {
@@ -121,11 +116,10 @@ const updateRecipe = async (req, res) => {
   }
 };
 // ADMIN: Eliminar una receta
+// 📌 Eliminar receta (Solo Admin)
 const deleteRecipe = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "No tienes permiso para eliminar recetas" });
-    }
+    if (req.user.role !== "admin") return res.status(403).json({ message: "No tienes permiso para eliminar recetas" });
 
     const { id } = req.params;
     const recipe = await Recipe.findById(id);
