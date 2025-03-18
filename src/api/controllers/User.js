@@ -273,12 +273,40 @@ const getAllUsers = async (req, res) => {
 const deleteUserByAdmin = async (req, res) => {
   try {
     const { id } = req.params;
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    // Guardamos el email antes de eliminar el usuario
+    const userEmail = user.email;
+
+    // Eliminamos el usuario de la base de datos
     await User.findByIdAndDelete(id);
-    res.json({ message: "Usuario eliminado por admin" });
+
+    // Enviar correo de notificación
+    await transporter.sendMail({
+      from: `"Tu Rincón Vegano" <${process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: "Cuenta eliminada - Tu Rincón Vegano",
+      html: `
+        <div style="text-align: center; font-family: Arial, sans-serif; padding: 20px;">
+          <img src="https://res.cloudinary.com/dyhasskhz/image/upload/v1741272763/Tu_RInc%C3%B3n_vegano_logo_pnbbaq.png" width="150" alt="Tu Rincón Vegano" />
+          <h2 style="color: #8cc342;">Tu cuenta ha sido eliminada</h2>
+          <p>Hemos decidido eliminar tu cuenta debido al incumplimiento de nuestras normas de comunidad.</p>
+          <p>Si crees que esto ha sido un error, puedes ponerte en contacto con nuestro soporte.</p>
+          <p>Gracias por tu tiempo en Tu Rincón Vegano.</p>
+        </div>
+      `,
+    });
+
+    res.json({ message: "Usuario eliminado y correo de notificación enviado." });
   } catch (error) {
     res.status(500).json({ message: "Error al eliminar usuario", error });
   }
 };
+
 const getUserFavorites = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate("favoriteRecipes", "title image category");

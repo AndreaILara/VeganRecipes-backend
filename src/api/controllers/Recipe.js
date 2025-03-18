@@ -64,29 +64,43 @@ const sendSuggestionToAdmin = async (req, res) => {
 };
 const createRecipe = async (req, res) => {
   try {
-    if (req.user.role !== "admin") return res.status(403).json({ message: "No tienes permiso para agregar recetas" });
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "No tienes permiso para agregar recetas" });
+    }
+
+    console.log("✅ Datos recibidos en req.body:", req.body);
+    console.log("✅ Archivo recibido en req.file:", req.file);
 
     const { title, ingredients, steps, category } = req.body;
-    if (!req.file) return res.status(400).json({ message: "Debe subir una imagen" });
 
-    const result = await uploadImage(req.file.path);
-    fs.unlinkSync(req.file.path); // Elimina la imagen temporal
+    if (!req.file) {
+      console.error("❌ No se recibió ninguna imagen.");
+      return res.status(400).json({ message: "Debe subir una imagen" });
+    }
+
+    // 🔹 Subir imagen a Cloudinary desde memoria (buffer)
+    const result = await uploadImage(req.file.buffer);
+
+    console.log("✅ Imagen subida a Cloudinary:", result.secure_url);
 
     const newRecipe = new Recipe({
       title,
       ingredients,
       steps,
       category,
-      image: result.secure_url,
+      image: result.secure_url, // URL de Cloudinary
       createdBy: req.user._id,
     });
 
     await newRecipe.save();
+    console.log("✅ Receta guardada en la base de datos.");
     res.status(201).json({ message: "Receta creada con éxito", newRecipe });
   } catch (error) {
+    console.error("❌ Error al crear receta:", error);
     res.status(500).json({ message: "Error al crear receta", error });
   }
 };
+
 // ADMIN: Editar una receta
 const updateRecipe = async (req, res) => {
   try {
