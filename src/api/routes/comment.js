@@ -4,8 +4,8 @@ const { isLoggedIn } = require("../../middlewares/auth");
 
 const router = express.Router();
 
-router.post("/", isLoggedIn, addComment); // 📌 Agregar comentario
-router.delete("/:id", isLoggedIn, deleteComment); // 📌 Eliminar comentario
-router.get("/:recipeId", getCommentsByRecipe); // 📌 Obtener comentarios
+router.post("/", isLoggedIn, addComment);
+router.delete("/:id", isLoggedIn, deleteComment);
+router.get("/:recipeId", getCommentsByRecipe);
 
 module.exports = router;

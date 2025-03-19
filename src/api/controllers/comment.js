@@ -21,7 +21,8 @@ const addComment = async (req, res) => {
     });
 
     await newComment.save();
-    await newComment.populate("createdBy", "username"); // 🔥 Agregar el usuario en la respuesta
+    await newComment.populate("createdBy", "username avatar");
+
 
     res.status(201).json(newComment); // 🔥 Devuelve solo el comentario, no un mensaje
   } catch (error) {
@@ -57,7 +58,8 @@ const getCommentsByRecipe = async (req, res) => {
   try {
     const { recipeId } = req.params;
     const comments = await Comment.find({ recipe: recipeId, parentComment: null })
-      .populate("createdBy", "username")
+      .populate("createdBy", "username avatar") // 🔥 Ahora también trae el avatar
+
       .sort({ createdAt: -1 });
 
     const commentsWithReplies = await Promise.all(

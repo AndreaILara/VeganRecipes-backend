@@ -7,17 +7,17 @@ const userRoutes = require("./src/api/routes/user.js");
 const recipeRoutes = require("./src/api/routes/recipe.js");
 const commentRoutes = require("./src/api/routes/comment.js");
 
-const app = express(); // <--- Mueve esta línea arriba
+const app = express();
 
 
-app.use(express.json({ limit: "10mb" }));  // Ahora está después de inicializar `app`
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 const corsOptions = {
-  origin: ["http://localhost:5173", "http://localhost:5176"], // ⚠️ Asegúrate de que el puerto coincide con el frontend
+  origin: ["http://localhost:5173", "http://localhost:5176"],
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  credentials: true, // ✅ Permite enviar cookies y tokens de autenticación
-  allowedHeaders: ["Content-Type", "Authorization"], // ✅ Asegura que se acepten los headers correctos
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
 // Aplica CORS con las opciones

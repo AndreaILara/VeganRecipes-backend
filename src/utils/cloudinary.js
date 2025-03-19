@@ -7,8 +7,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-console.log("✅ Cloudinary Configurado:", cloudinary.config());
-
 const uploadImage = async (buffer) => {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
@@ -22,13 +20,13 @@ const uploadImage = async (buffer) => {
       }
     );
 
-    stream.end(buffer); // 🔹 Enviar la imagen en `buffer` al stream
+    stream.end(buffer);
   });
 };
 
 const deleteImage = async (imageUrl) => {
   try {
-    const publicId = imageUrl.split("/").pop().split(".")[0]; // Extrae el `public_id` de la URL
+    const publicId = imageUrl.split("/").pop().split(".")[0];
     await cloudinary.uploader.destroy(`vegan_recipes/${publicId}`);
   } catch (error) {
     console.error("❌ Error al eliminar imagen de Cloudinary:", error);

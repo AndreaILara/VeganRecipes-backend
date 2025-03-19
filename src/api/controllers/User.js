@@ -23,18 +23,29 @@ const registerUser = async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
 
-    if (await User.findOne({ email })) {
+    // 🔎 Verificar si el correo ya está en uso
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
       return res.status(400).json({ message: "El email ya está en uso" });
     }
 
+    // 🔎 Verificar si el nombre de usuario ya está en uso
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(400).json({ message: "El nombre de usuario ya está en uso" });
+    }
+
+    // ✅ Validar la contraseña
     if (!validarContraseña(password)) {
       return res.status(400).json({
         message: "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo especial.",
       });
     }
 
+    // 🔒 Encriptar la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 📝 Crear nuevo usuario
     const newUser = new User({
       username,
       email,
@@ -44,6 +55,7 @@ const registerUser = async (req, res) => {
 
     await newUser.save();
 
+    // 📧 Enviar correo de bienvenida
     await transporter.sendMail({
       from: `"Tu Rincón Vegano" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -59,19 +71,26 @@ const registerUser = async (req, res) => {
       `,
     });
 
-    res.status(201).json({ message: "Usuario registrado correctamente", user: newUser });
+    res.status(201).json({ message: "✅ Usuario registrado correctamente", user: newUser });
   } catch (error) {
-    res.status(500).json({ message: "Error en el registro", error });
+    console.error("❌ Error en el registro:", error);
+    res.status(500).json({ message: "Error en el registro, intenta nuevamente.", error });
   }
 };
+
 
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(400).json({ message: "Credenciales inválidas" });
+    if (!user) {
+      return res.status(400).json({ message: "Correo no registrado" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Contraseña incorrecta" });
     }
 
     const token = generateSign(user._id);
@@ -82,7 +101,7 @@ const loginUser = async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
-        avatar: user.avatar,  // 🔥 Asegura que se envíe el avatar
+        avatar: user.avatar,
         role: user.role
       },
     });
@@ -102,15 +121,24 @@ const getUserProfile = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { username, email, avatar, password } = req.body;
+    const { username, avatar, password, email } = req.body;
 
-    let updateData = { username, email };
+    if (email && email !== req.user.email) {
+      return res.status(400).json({ message: "No puedes cambiar el email desde aquí" });
+    }
+
+    let updateData = { username };
 
     if (avatar) {
-      updateData.avatar = avatar;  // 🔥 Guarda la imagen correctamente en la BD
+      updateData.avatar = avatar;
     }
 
     if (password) {
+      if (!validarContraseña(password)) {
+        return res.status(400).json({
+          message: "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un símbolo especial.",
+        });
+      }
       updateData.password = await bcrypt.hash(password, 10);
     }
 
@@ -330,6 +358,11 @@ const addRecipeToFavorites = async (req, res) => {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
+    const recipe = await Recipe.findById(recipeId);
+    if (!recipe) {
+      return res.status(404).json({ message: "Receta no encontrada" });
+    }
+
     if (user.favoriteRecipes.includes(recipeId)) {
       return res.status(400).json({ message: "Esta receta ya está en favoritos" });
     }
@@ -342,6 +375,7 @@ const addRecipeToFavorites = async (req, res) => {
     res.status(500).json({ message: "Error al añadir a favoritos", error });
   }
 };
+
 
 
 const removeRecipeFromFavorites = async (req, res) => {

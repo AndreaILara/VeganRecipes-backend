@@ -71,16 +71,15 @@ const createRecipe = async (req, res) => {
     console.log("✅ Datos recibidos en req.body:", req.body);
     console.log("✅ Archivo recibido en req.file:", req.file);
 
-    const { title, ingredients, steps, category } = req.body;
+    const { title, ingredients, steps, category, prepTime, cookTime, servings } = req.body;
 
     if (!req.file) {
       console.error("❌ No se recibió ninguna imagen.");
       return res.status(400).json({ message: "Debe subir una imagen" });
     }
 
-    // 🔹 Subir imagen a Cloudinary desde memoria (buffer)
+    // 🔹 Subir imagen a Cloudinary
     const result = await uploadImage(req.file.buffer);
-
     console.log("✅ Imagen subida a Cloudinary:", result.secure_url);
 
     const newRecipe = new Recipe({
@@ -88,7 +87,10 @@ const createRecipe = async (req, res) => {
       ingredients,
       steps,
       category,
-      image: result.secure_url, // URL de Cloudinary
+      prepTime,
+      cookTime,
+      servings,
+      image: result.secure_url,
       createdBy: req.user._id,
     });
 
@@ -101,36 +103,43 @@ const createRecipe = async (req, res) => {
   }
 };
 
+
 // ADMIN: Editar una receta
 const updateRecipe = async (req, res) => {
   try {
     if (req.user.role !== "admin") return res.status(403).json({ message: "No tienes permiso para editar recetas" });
 
     const { id } = req.params;
-    const { title, ingredients, steps, category } = req.body;
+    const { title, ingredients, steps, category, prepTime, cookTime, servings } = req.body;
     const recipe = await Recipe.findById(id);
     if (!recipe) return res.status(404).json({ message: "Receta no encontrada" });
 
+    // 🔹 Actualizar campos de la receta
     if (title) recipe.title = title;
     if (ingredients) recipe.ingredients = ingredients;
     if (steps) recipe.steps = steps;
     if (category) recipe.category = category;
+    if (prepTime) recipe.prepTime = prepTime;
+    if (cookTime) recipe.cookTime = cookTime;
+    if (servings) recipe.servings = servings;
 
+    // 🔹 Procesar nueva imagen si se sube una
     if (req.file) {
-      await deleteImage(recipe.image);
-      const result = await uploadImage(req.file.path);
-      fs.unlinkSync(req.file.path);
-      recipe.image = result.secure_url;
+      console.log("📸 Nueva imagen recibida:", req.file);
+      await deleteImage(recipe.image); // Eliminar imagen anterior de Cloudinary
+      const result = await uploadImage(req.file.buffer); // Subir nueva imagen
+      recipe.image = result.secure_url; // Guardar nueva URL
     }
 
     await recipe.save();
     res.json({ message: "Receta actualizada", recipe });
   } catch (error) {
+    console.error("❌ Error al actualizar receta:", error);
     res.status(500).json({ message: "Error al actualizar receta", error });
   }
 };
-// ADMIN: Eliminar una receta
-// 📌 Eliminar receta (Solo Admin)
+
+
 const deleteRecipe = async (req, res) => {
   try {
     if (req.user.role !== "admin") return res.status(403).json({ message: "No tienes permiso para eliminar recetas" });
@@ -150,15 +159,15 @@ const deleteRecipe = async (req, res) => {
 
 const getRecipesByCategory = async (req, res) => {
   try {
-    const { category } = req.params; // Obtiene la categoría desde los parámetros de la URL
+    const { category } = req.params;
 
-    // Verificar que la categoría sea válida
+
     const validCategories = ["Desayuno", "Comida", "Merienda", "Cena"];
     if (!validCategories.includes(category)) {
       return res.status(400).json({ message: "Categoría inválida" });
     }
 
-    // Filtrar recetas por la categoría proporcionada (sin espacios extra)
+
     const recipes = await Recipe.find({ category: category.trim() }).populate("createdBy", "username");
 
     if (recipes.length === 0) {
