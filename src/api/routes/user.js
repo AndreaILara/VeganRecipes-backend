@@ -1,7 +1,7 @@
 const express = require("express");
 const {
   registerUser, loginUser, getUserProfile, updateUser, changePassword, forgotPassword, resetPassword, deleteUser, getAllUsers, deleteUserByAdmin,
-  getUserFavorites, addRecipeToFavorites, removeRecipeFromFavorites
+  getUserFavorites, addRecipeToFavorites, removeRecipeFromFavorites, checkEmailExists
 } = require("../controllers/User");
 const { isLoggedIn, isAdmin } = require("../../middlewares/auth");
 
@@ -9,6 +9,7 @@ const router = express.Router();
 
 
 router.post("/register", registerUser);
+router.post("/check-email", checkEmailExists);
 router.post("/login", loginUser);
 router.get("/profile", isLoggedIn, getUserProfile);
 router.put("/profile", isLoggedIn, updateUser);

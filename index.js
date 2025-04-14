@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 const corsOptions = {
   origin: [
     "http://localhost:5173",
-    "http://localhost:5176",
+    "http://localhost:5174",
     "https://vegan-recipes-frontend.vercel.app" // ✅ Agregar la URL del frontend en Vercel
   ],
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",

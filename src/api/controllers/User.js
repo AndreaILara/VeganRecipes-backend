@@ -79,6 +79,25 @@ const registerUser = async (req, res) => {
     res.status(500).json({ message: "Error en el registro, intenta nuevamente.", error });
   }
 };
+const checkEmailExists = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ exists: false, message: "Falta el email" });
+    }
+
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "Error al verificar email", error });
+  }
+};
 
 
 const loginUser = async (req, res) => {
@@ -412,5 +431,5 @@ module.exports = {
   resetPassword,
   deleteUser,
   getAllUsers,
-  deleteUserByAdmin, getUserFavorites, addRecipeToFavorites, removeRecipeFromFavorites
+  deleteUserByAdmin, getUserFavorites, addRecipeToFavorites, removeRecipeFromFavorites, checkEmailExists
 };
