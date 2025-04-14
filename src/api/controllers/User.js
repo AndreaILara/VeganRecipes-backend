@@ -21,7 +21,8 @@ const validarContraseña = (password) => {
 
 const registerUser = async (req, res) => {
   try {
-    const { username, email, password, role } = req.body;
+    const { username, email, password } = req.body;
+    const role = "user";
 
     // 🔎 Verificar si el correo ya está en uso
     const existingEmail = await User.findOne({ email });
@@ -50,8 +51,9 @@ const registerUser = async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      role: role === "admin" ? "admin" : "user",
+      role,
     });
+
 
     await newUser.save();
 
